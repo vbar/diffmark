@@ -1,0 +1,7 @@
+diffmark is an XML diff and merge package. It consists of a shared
+library and 2 executables: dm and dm-merge. See file INSTALL on how to
+make them and files in the doc directory on what to do with them.
+
+If you have problems using diffmark, bug reports, suggestions for
+improvement etc., mail them to vbar@comp.cz .
+

@@ -1,0 +1,31 @@
+if [ catch {
+    set i 0
+    while { $i <= 4 } {
+	if { $i < 10 } {
+	    set filled 0$i
+	} else {
+	    set filled $i
+	}
+
+	set root testdata/merge/$filled
+	set a $root
+	append a a.xml
+	set b $root
+	append b b.xml
+	set d $root
+	append d d.xml
+	set res $filled
+	append res res.xml
+
+	exec cmd/dm-merge $a $d > $res
+	exec diff $res $b
+	exec rm $res
+	pass $filled
+
+	incr i
+    }
+
+    pass "merge" } err ] {
+    puts stderr "ERROR: $err"
+    fail "merge"
+}

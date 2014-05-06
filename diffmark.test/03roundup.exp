@@ -1,0 +1,38 @@
+if [ catch {
+    set i 0
+    while { $i <= 23 } {
+	if { $i < 10 } {
+	    set filled 0$i
+	} else {
+	    set filled $i
+	}
+
+	set root testdata/roundup/$filled
+	set a $root
+	append a a.xml
+	set b $root
+	append b b.xml
+	set d $root
+	append d d.xml
+	set rd $filled
+	append rd rd.xml
+	set rb $filled
+	append rb rb.xml
+
+	exec cmd/dm $a $b > $rd
+	exec diff $rd $d
+	exec rm $rd
+	pass "$filled (diff)"
+
+	exec cmd/dm-merge $a $d > $rb
+	exec diff $rb $b
+	exec rm $rb
+	pass "$filled (merge)"
+
+	incr i
+    }
+
+    pass "roundup" } err ] {
+    puts stderr "ERROR: $err"
+    fail "roundup"
+}

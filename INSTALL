@@ -1,0 +1,15 @@
+diffmark depends on libxml2 for parsing XML - you must have libxml2
+installed before building diffmark. libxml2 is available from
+http://xmlsoft.org/ .
+
+Otherwise, installation follows the GNU standard: just run (in this
+directory)
+	./configure
+	make
+
+then, to test the build result (optional, requires expect)
+	make check
+
+and then, as root
+	make install
+

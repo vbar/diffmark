@@ -1,0 +1,35 @@
+if [ catch {
+    set i 0
+    while { $i <= 8 } {
+	if { $i < 10 } {
+	    set filled 0$i
+	} else {
+	    set filled $i
+	}
+
+	set root testdata/failmerge/$filled
+	set a $root
+	append a a.xml
+	set d $root
+	append d d.xml
+	set e $root
+	append e .err
+	set res $filled
+	append res res.err
+
+	if [ catch {
+	    exec cmd/dm-merge $a $d >& $res
+	    fail $filled } err ] {
+	    exec diff $res $e
+	    exec rm $res
+	    pass $filled
+	}
+
+	incr i
+    }
+
+    pass "failmerge" } err ] {
+    puts stderr "ERROR: $err"
+    fail "failmerge"
+}
+

@@ -1,0 +1,12 @@
+if [ catch {
+    exec cmd/test-lcs
+    pass "LCS" 
+
+    exec cmd/test-compare
+    pass "compare" 
+
+    } err ] {
+    puts stderr "ERROR: $err"
+    fail "unit"
+}
+
