@@ -2,6 +2,16 @@ diffmark depends on libxml2 for parsing XML - you must have libxml2
 installed before building diffmark. libxml2 is available from
 http://xmlsoft.org/ .
 
+If you're using the git repo, you also need autotools to generate the
+makefiles (users of the packaged diffmark may skip this step - it's
+done during packaging):
+
+autoheader
+aclocal
+libtoolize
+automake --add-missing
+autoconf
+
 Otherwise, installation follows the GNU standard: just run (in this
 directory)
 	./configure
