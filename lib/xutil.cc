@@ -251,3 +251,10 @@ std::string xutil::flatten(xmlNodePtr n)
 	reinterpret_cast<char *>(((xmlBufferPtr)buf)->content));
 }
 
+xmlChar * xutil::get_prop(xmlNodePtr node, xmlAttrPtr attr)
+{
+	assert(node);
+	assert(attr);
+
+	return xmlGetNsProp(node, attr->name, (attr->ns ? attr->ns->href : 0));
+}

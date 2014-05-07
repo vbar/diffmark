@@ -56,7 +56,7 @@ static void print_diff(const char *from_file, const char *to_file)
 
     xmlChar *mem = 0;
     int size = 0;
-    xmlDocDumpFormatMemory(diff, &mem, &size, 1);
+    xmlDocDumpFormatMemoryEnc(diff, &mem, &size, "UTF-8", 1);
     
     std::copy(reinterpret_cast<char *>(mem),
 	reinterpret_cast<char *>(mem + size),

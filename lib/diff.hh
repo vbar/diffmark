@@ -47,6 +47,8 @@ private:
     virtual void on_insert(xmlNodePtr n);
     virtual void on_delete(xmlNodePtr n);
 
+	virtual void diff_attributes(xmlNodePtr n, xmlNodePtr m);
+
     const std::string nsprefix;
 
     XDoc dest;

@@ -1,5 +1,6 @@
 #include "compare.hh"
 #include "compareimpl.hh"
+#include "xutil.hh"
 #include <sstream>
 #include <iostream>
 #include <assert.h>
@@ -17,7 +18,7 @@ static int compare_children(xmlNodePtr m, xmlNodePtr n);
 // NULL); the returned value must be freed (by xmlFree).
 static xmlChar *get_value(xmlAttrPtr a);
 
-#if 0
+#if 1
 #define TRACE(trace_arg) std::cerr << trace_arg << std::endl
 #else
 #define TRACE(trace_arg)
@@ -25,7 +26,7 @@ static xmlChar *get_value(xmlAttrPtr a);
 
 int compare(xmlNodePtr m, xmlNodePtr n, bool deep)
 {
-    TRACE("enter compare");
+	TRACE("->compare(" << xutil::get_node_name(m) << ", " << xutil::get_node_name(n) << ", " << deep << ')');
 
     assert(m);
     assert(n);

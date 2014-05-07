@@ -1,11 +1,14 @@
 #include "diff.hh"
 #include "xutil.hh"
+#include "compareimpl.hh"
 #include <libxml/tree.h>
 #include <sstream>
 #include <vector>
+#include <set>
 #include <assert.h>
+#include <algorithm>    // std::set_symmetric_difference
 
-#if 0
+#if 1
 #include <iostream>
 
 #define TRACE(trace_arg) std::cerr << trace_arg << std::endl
@@ -116,7 +119,7 @@ xmlDocPtr Diff::diff_nodes(xmlNodePtr m, xmlNodePtr n)
 void Diff::diff(xmlNodePtr m, xmlNodePtr n)
 {
     if (!do_diff_nodes(m, n, true)) {
-	return;
+		return;
     }
 
     XDoc wa_dest = dest;
@@ -127,10 +130,9 @@ void Diff::diff(xmlNodePtr m, xmlNodePtr n)
     dest = XDoc();
     do_diff_nodes(m, n, false);
 
-    if (get_node_count(get_root_element(wa_dest)) <
-	get_node_count(get_root_element(dest))) {
-	dest = wa_dest;
-	dest_ns = wa_dest_ns;
+    if (get_node_count(get_root_element(wa_dest)) < get_node_count(get_root_element(dest))) {
+		dest = wa_dest;
+		dest_ns = wa_dest_ns;
     }
 }
 
@@ -146,27 +148,32 @@ bool Diff::do_diff_nodes(xmlNodePtr m, xmlNodePtr n, bool use_upd_attr)
 
     std::equal_to<xmlNodePtr> is_equal;
     if (is_equal(m, n)) {
-	append_copy();
+		append_copy();
     } else {
-	if (compare(m, n, false)) {
-	    if (use_upd_attr && m->children && n->children) {
-		descend(m, n);
+		if (compare(m, n, false)) {
+			if (m->children && n->children) {
+			descend(m, n);
 
-		string old_name = get_node_name(m);
-		xmlSetNsProp(dest_point,
-		    dest_ns,
-		    reinterpret_cast<const xmlChar *>("update"),
-		    reinterpret_cast<const xmlChar *>(old_name.c_str()));
+			string old_name = get_node_name(m);
+			xmlSetNsProp(dest_point,
+				dest_ns,
+				reinterpret_cast<const xmlChar *>("update"),
+				reinterpret_cast<const xmlChar *>(old_name.c_str()));
 
-		// std::cerr << lcsimpl::flatten(dest_point) << std::endl;
+			// std::cerr << lcsimpl::flatten(dest_point) << std::endl;
 
-		has_upd_attr = true;
-	    } else {
-		replace(m, n);
-	    }
-	} else {
-	    descend(m, n);
-	}
+			has_upd_attr = true;
+			} else {
+				if (use_upd_attr && !m->children && !n->children){ // Attributes only change
+					diff_attributes(n, m);
+				}
+				else{
+					replace(m, n);
+				}
+			}
+		} else {
+			descend(m, n);
+		}
     }
 
     return has_upd_attr;
@@ -192,6 +199,7 @@ void Diff::descend(xmlNodePtr m, xmlNodePtr n)
 
 void Diff::replace(xmlNodePtr m, xmlNodePtr n)
 {
+	TRACE("->replace(" << get_node_name(m) << ", " << get_node_name(n) << ')');
     xmlNodePtr del = new_dm_node("delete");
     append_child(dest_point, del);
 
@@ -201,7 +209,7 @@ void Diff::replace(xmlNodePtr m, xmlNodePtr n)
 
 bool Diff::combine_pair(xmlNodePtr n, bool reverse)
 {
-    TRACE(this << "->combine_pair(" << get_node_name(n) << ", " \
+    TRACE("->combine_pair(" << get_node_name(n) << ", " \
 	<< reverse << ')');
 
     assert(dest_point);
@@ -319,7 +327,7 @@ void Diff::on_match()
 
 void Diff::on_insert(xmlNodePtr n)
 {
-    TRACE(this << "->on_insert(" << get_node_name(n) << ')');
+    TRACE("->on_insert(" << get_node_name(n) << ')');
     assert(n);
 
     xmlNodePtr last = dest_point->last;
@@ -338,7 +346,7 @@ void Diff::on_insert(xmlNodePtr n)
 
 void Diff::on_delete(xmlNodePtr n)
 {
-    TRACE(this << "->on_delete(" << get_node_name(n) << ')');
+    TRACE("->on_delete(" << get_node_name(n) << ')');
     assert(n);
 
     xmlNodePtr last = dest_point->last;
@@ -358,8 +366,7 @@ void Diff::on_delete(xmlNodePtr n)
 
 xmlNodePtr Diff::new_dm_node(const char *name)
 {
-    xmlNodePtr n = xmlNewNode(dest_ns,
-	reinterpret_cast<const xmlChar *>(name));
+    xmlNodePtr n = xmlNewNode(dest_ns, reinterpret_cast<const xmlChar *>(name));
     if (!n) {
 	string s = "cannot create ";
 	s += name;
@@ -369,4 +376,62 @@ xmlNodePtr Diff::new_dm_node(const char *name)
     xmlSetTreeDoc(n, dest);
 
     return n;
+}
+
+void Diff::diff_attributes(xmlNodePtr changed, xmlNodePtr orig)
+{
+	assert(dest_point);
+	assert(changed);
+	assert(orig);
+	TRACE("->diff_attributes(" << get_node_name(changed) << ", " << get_node_name(orig) << ')');
+
+	xmlNodePtr changeAttributesNode = new_dm_node("attributes");
+	append_child(dest_point, changeAttributesNode);
+	// original object is optional, but present for easy human analyze.
+	append_child(changeAttributesNode, import_node(orig));
+
+	std::set<xmlAttrPtr> res;
+	std::set<xmlAttrPtr>::const_iterator it;
+
+	std::set<xmlAttrPtr> o = compareimpl::get_set<xmlAttrPtr>(orig->properties);
+	std::set<xmlAttrPtr> c = compareimpl::get_set<xmlAttrPtr>(changed->properties);
+
+	std::less<xmlAttrPtr> less_func;
+
+	std::set_symmetric_difference (o.begin(), o.end(), c.begin(), c.end(), std::inserter(res, res.begin()), less_func);
+
+	xmlNodePtr attrDel = new_dm_node("attr-del");
+	xmlNodePtr attrAdd = new_dm_node("attr-add");
+	xmlNodePtr attrMod = new_dm_node("attr-mod");
+
+	for (it = res.begin(); it != res.end(); ++it){
+		xmlChar * attrValueO = get_prop(orig, ((xmlAttrPtr)*it));
+		xmlChar * attrValueC = get_prop(changed, ((xmlAttrPtr)*it));
+
+		TRACE("  ->diff_attributes. Process changed attribute: [" << (((xmlAttrPtr)*it)->ns ? string((char *)((xmlAttrPtr)*it)->ns->prefix) + ":" : "") << ((xmlAttrPtr)*it)->name << "='" << (attrValueO ? (const char*)attrValueO : "null") << "'<->'" << (attrValueC ? (const char*)attrValueC : "null") << "']");
+		if (0 == attrValueC){ // Deleted
+			xmlNodePtr attr = new_dm_node("attr");
+			xmlSetNsProp(attr, dest_ns, reinterpret_cast<const xmlChar*>("name"), xutil::get_scoped_name<xmlAttrPtr>((xmlAttrPtr)*it));
+			append_child(attrDel, attr);
+			append_child(changeAttributesNode, attrDel);
+		}
+		else if(0 == attrValueO){ // New
+			xmlNodePtr attr = new_dm_node("attr");
+			xmlSetNsProp(attr, dest_ns, reinterpret_cast<const xmlChar*>("name"), xutil::get_scoped_name<xmlAttrPtr>((xmlAttrPtr)*it));
+			xmlSetNsProp(attr, dest_ns, reinterpret_cast<const xmlChar*>("value"), attrValueC);
+			append_child(attrAdd, attr);
+			append_child(changeAttributesNode, attrAdd);
+		}
+		else if( 0 == compareimpl::compare_name(((xmlAttrPtr)*it), ((xmlAttrPtr)(*++it))) ){ // Value changed (move to next element in condition)
+			xmlNodePtr attr = new_dm_node("attr");
+			xmlSetNsProp(attr, dest_ns, reinterpret_cast<const xmlChar*>("name"), xutil::get_scoped_name<xmlAttrPtr>((xmlAttrPtr)*it));
+			xmlSetNsProp(attr, dest_ns, reinterpret_cast<const xmlChar*>("old"), attrValueO);
+			xmlSetNsProp(attr, dest_ns, reinterpret_cast<const xmlChar*>("new"), attrValueC);
+			append_child(attrMod, attr);
+			append_child(changeAttributesNode, attrMod);
+		}
+
+		xmlFree(attrValueO);
+		xmlFree(attrValueC);
+	}
 }
