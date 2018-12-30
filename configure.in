@@ -1,5 +1,5 @@
 # Process this file with autoconf to produce a configure script.
-AC_INIT(diffmark, 0.10, vbar@comp.cz)
+AC_INIT(diffmark, 0.10, vbarta@mangrove.cz)
 AC_CONFIG_SRCDIR(cmd/dm.cc)
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE(diffmark, 0.10)
